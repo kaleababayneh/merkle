@@ -10,6 +10,8 @@ const fetchMerkleRootAndTransactions = block =>
         .then(response => response.json())
         .then(data => [data.mrkl_root, data.tx.map(tx => tx.hash)])
 
+
+const random = arr => arr[Math.floor(Math.random() * arr.length)]        
 const toBytes = hex =>
     hex.match(/../g).reduce((acc, hex) => [...acc, parseInt(hex, 16)], [])
 
@@ -31,14 +33,39 @@ const merkleRoot = txs =>
         : merkleRoot(toPairs(txs).reduce((tree, pair) => [...tree, hashPair(...pair)], [])) 
 
 
- 
+const merkleProof = (txs, tx, proof = []) => {
+    if (txs.length === 1) return proof
+
+    const tree = []
+
+    toPairs(txs).forEach(pair => {
+        const hash = hashPair(...pair)
+
+        if (pair.includes(tx)) {
+            const idx = pair[0] === tx | 0
+            proof.push([idx, pair[idx]])
+            tx = hash
+        }
+        tree.push(hash)
+    });
+
+    return merkleProof(tree, tx, proof)
+};
+    
+const merkleProofRoot = (proof, tx) => {
+    return proof.reduce((root, [idx, hash]) => idx ? hashPair(root, hash) : hashPair(hash, root), tx);
+}
+
+
+
 
 fetchLatestBlock()
     .then(fetchMerkleRootAndTransactions)
     .then(([root, txs]) => {
-       
-        console.log(merkleRoot(txs))
+        const tx = random(txs)
+        const proof = merkleProof(txs, tx)
         console.log(root)
+        console.log(merkleProofRoot(proof, tx))
     }
 )
 
